@@ -1,0 +1,97 @@
+# ═══════════════════════════════════════════════════════════════
+# FLOW CONFIGURATION
+# Defines integration flows (sequence of steps) for each use case.
+# Flows are hot-reloadable.
+# ═══════════════════════════════════════════════════════════════
+
+flows:
+  # ── Bank Transfer Flow ───────────────────────────────────────
+  - flow-id: "bank-transfer"
+    description: "Process interbank transfer request"
+    enabled: true
+    steps:
+      - name: "validate-input"
+        type: "validation"
+        order: 1
+        config:
+          schema: "transfer-request-schema"
+          fail-fast: true
+
+      - name: "enrich-account"
+        type: "transformation"
+        order: 2
+        config:
+          transformer: "json-enricher"
+          mapping: "account-enrichment"
+
+      - name: "check-balance"
+        type: "adapter-call"
+        order: 3
+        config:
+          adapter: "rest-adapter"
+          endpoint: "http://core-banking/api/v1/accounts/{accountId}/balance"
+          timeout-ms: 5000
+
+      - name: "transform-to-iso8583"
+        type: "transformation"
+        order: 4
+        config:
+          transformer: "json-to-iso8583"
+          mapping: "transfer-iso8583-mapping"
+
+      - name: "route-to-backend"
+        type: "routing"
+        order: 5
+        config:
+          router: "content-based-router"
+          route-key: "core-banking-transfer"
+
+      - name: "send-notification"
+        type: "async-event"
+        order: 6
+        config:
+          adapter: "kafka-adapter"
+          topic: "transfer.completed"
+          fire-and-forget: true
+
+  # ── QR Payment Flow ──────────────────────────────────────────
+  - flow-id: "qr-payment"
+    description: "Process QR code payment"
+    enabled: true
+    steps:
+      - name: "validate-qr"
+        type: "validation"
+        order: 1
+        config:
+          schema: "qr-payment-schema"
+
+      - name: "parse-qr-data"
+        type: "transformation"
+        order: 2
+        config:
+          transformer: "qr-parser"
+
+      - name: "route-payment"
+        type: "routing"
+        order: 3
+        config:
+          router: "content-based-router"
+          route-key: "payment-gateway"
+
+  # ── Notification Flow ────────────────────────────────────────
+  - flow-id: "send-sms"
+    description: "Send SMS notification"
+    enabled: true
+    steps:
+      - name: "validate-phone"
+        type: "validation"
+        order: 1
+        config:
+          schema: "sms-request-schema"
+
+      - name: "publish-event"
+        type: "adapter-call"
+        order: 2
+        config:
+          adapter: "kafka-adapter"
+          topic: "notification.sms"

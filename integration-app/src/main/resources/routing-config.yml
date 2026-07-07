@@ -1,0 +1,78 @@
+# ═══════════════════════════════════════════════════════════════
+# ROUTING CONFIGURATION
+# Defines how messages are routed to target systems.
+# This file is hot-reloadable (changes take effect without restart).
+# ═══════════════════════════════════════════════════════════════
+
+routing:
+  routes:
+    # ── Core Banking Transfer ──────────────────────────────────
+    - route-key: "core-banking-transfer"
+      adapter-name: "rest-adapter"
+      protocol: "REST"
+      endpoint: "http://core-banking.msb.com.vn/api/v1/transfers"
+      method: "POST"
+      timeout-ms: 15000
+      circuit-breaker-enabled: true
+      properties:
+        content-type: "application/json"
+        retry-on-5xx: "true"
+
+    # ── Payment Gateway ────────────────────────────────────────
+    - route-key: "payment-gateway"
+      adapter-name: "rest-adapter"
+      protocol: "REST"
+      endpoint: "http://payment-gw.msb.com.vn/api/v2/payments"
+      method: "POST"
+      timeout-ms: 10000
+      circuit-breaker-enabled: true
+      properties:
+        content-type: "application/json"
+
+    # ── Notification via Kafka ─────────────────────────────────
+    - route-key: "send-notification"
+      adapter-name: "kafka-adapter"
+      protocol: "KAFKA"
+      endpoint: "notification.events"
+      method: "PUBLISH"
+      timeout-ms: 5000
+      circuit-breaker-enabled: false
+      properties:
+        kafka-topic: "notification.events"
+
+    # ── NAPAS Interbank (SOAP) ─────────────────────────────────
+    - route-key: "napas-interbank"
+      adapter-name: "soap-adapter"
+      protocol: "SOAP"
+      endpoint: "http://napas-proxy.msb.com.vn/ws/transfer"
+      method: "POST"
+      timeout-ms: 20000
+      circuit-breaker-enabled: true
+      properties:
+        soap-action: "urn:transfer"
+        wsdl: "napas-transfer.wsdl"
+
+    # ── Audit Log to File ──────────────────────────────────────
+    - route-key: "audit-file"
+      adapter-name: "file-adapter"
+      protocol: "FILE"
+      endpoint: "/data/audit/"
+      method: "WRITE"
+      timeout-ms: 3000
+      circuit-breaker-enabled: false
+      properties:
+        directory: "/data/audit/integration"
+        file-pattern: "{correlationId}_{date}.json"
+
+    # ── SFTP Report Upload ─────────────────────────────────────
+    - route-key: "sftp-report"
+      adapter-name: "sftp-adapter"
+      protocol: "SFTP"
+      endpoint: "sftp.msb.com.vn:22"
+      method: "UPLOAD"
+      timeout-ms: 30000
+      circuit-breaker-enabled: false
+      properties:
+        remote-directory: "/reports/integration"
+        username: "${SFTP_USER}"
+        private-key: "${SFTP_KEY_PATH}"

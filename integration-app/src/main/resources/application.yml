@@ -1,0 +1,127 @@
+server:
+  port: 8081
+  servlet:
+    context-path: /
+  undertow:
+    threads:
+      io: 4
+      worker: 200
+    direct-buffers: true
+
+spring:
+  application:
+    name: integration-platform
+  threads:
+    virtual:
+      enabled: true
+
+  # Redis (for idempotent store, hot config, caching)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 10
+          max-wait: 1000ms
+
+  # Kafka
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: integration-platform-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+
+  # RabbitMQ
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+
+# ═══════════════════════════════════════════════════════════════
+# INTEGRATION PLATFORM CONFIGURATION
+# ═══════════════════════════════════════════════════════════════
+
+integration:
+  # Scheduler intervals
+  scheduler:
+    retry-interval-ms: 60000
+    health-check-interval-ms: 30000
+    config-refresh-interval-ms: 300000
+
+  # Idempotent store TTL
+  idempotent:
+    ttl-hours: 24
+
+  # Default timeouts
+  timeout:
+    connect-ms: 5000
+    read-ms: 15000
+
+# Resilience4j
+resilience4j:
+  circuitbreaker:
+    instances:
+      integration-adapter:
+        sliding-window-size: 50
+        minimum-number-of-calls: 20
+        failure-rate-threshold: 60
+        slow-call-rate-threshold: 80
+        slow-call-duration-threshold: 8s
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      integration-adapter:
+        max-attempts: 3
+        wait-duration: 500ms
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+  ratelimiter:
+    instances:
+      integration-gateway:
+        limit-for-period: 1000
+        limit-refresh-period: 1s
+        timeout-duration: 2s
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# SpringDoc
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+logging:
+  level:
+    msb.com.vn.integration: DEBUG
+    org.springframework.kafka: INFO
