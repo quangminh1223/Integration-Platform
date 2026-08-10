@@ -1,0 +1,56 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# BACKEND ENDPOINTS CONFIG
+# Quản lý domain/base URL cho từng swagger theo nhóm domain
+#
+# Cấu trúc:
+#   backend-endpoints:
+#     domains:
+#       <tên-nhóm>:
+#         base-url: <URL gốc của nhóm>
+#         swagger-files:
+#           <swaggerId>: <path tương đối hoặc override URL nếu khác base-url>
+#
+# Khi gọi API, ưu tiên:
+#   1. swagger-files[swaggerId] nếu là full URL
+#   2. base-url của nhóm + path trong swagger
+#   3. host/basePath trong file swagger (fallback)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+backend-endpoints:
+  domains:
+
+    # ── CORE BANKING (T24/Transact) ────────────────────────────────────────────
+    core:
+      description: "Core Banking T24 - Giao dịch chuyển khoản, tài khoản"
+      base-url: http://irisuat4.msb.com.vn/MsbTransferApi/api/v1.0.0
+      timeout-ms: 15000
+      swagger-files:
+        createMsbAccountTransfer-v1.0.0-swagger: ""   # dùng base-url của nhóm
+        # createMsbInternalTransfer-v1.0.0-swagger: ""
+        # getMsbAccountBalance-v1.0.0-swagger: ""
+
+    # ── PAYMENT GATEWAY ────────────────────────────────────────────────────────
+    # payment:
+    #   description: "Payment Gateway - Thanh toán, QR"
+    #   base-url: http://payment-gw.msb.com.vn/api/v2
+    #   timeout-ms: 10000
+    #   swagger-files:
+    #     createPayment-v2.0.0-swagger: ""
+    #     getPaymentStatus-v2.0.0-swagger: ""
+
+    # ── NAPAS ──────────────────────────────────────────────────────────────────
+    # napas:
+    #   description: "NAPAS - Chuyển liên ngân hàng"
+    #   base-url: http://napas-proxy.msb.com.vn/api/v1
+    #   timeout-ms: 20000
+    #   swagger-files:
+    #     napasTransfer-v1.0.0-swagger: ""
+
+    # ── NOTIFICATION ───────────────────────────────────────────────────────────
+    # notification:
+    #   description: "Notification Service - SMS, Email, Push"
+    #   base-url: http://notify.msb.com.vn/api/v1
+    #   timeout-ms: 5000
+    #   swagger-files:
+    #     sendSms-v1.0.0-swagger: ""
+    #     sendEmail-v1.0.0-swagger: ""

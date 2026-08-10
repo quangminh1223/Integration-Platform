@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>QR Service – Developer Guide</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #1a1a2e; background: #f8f9fa; }
+  .cover { background: linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%); color:#fff; padding:80px 60px; min-height:280px; }
+  .cover h1 { font-size:36px; font-weight:700; letter-spacing:1px; margin-bottom:12px; }
+  .cover .sub { font-size:16px; opacity:.8; margin-bottom:30px; }
+  .cover .meta { font-size:12px; opacity:.6; border-top:1px solid rgba(255,255,255,.2); padding-top:16px; }
+  .cover .badge { display:inline-block; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3); border-radius:20px; padding:4px 14px; font-size:11px; margin-right:8px; }
+  .toc { background:#fff; margin:30px 40px; border-radius:10px; padding:30px 36px; box-shadow:0 2px 12px rgba(0,0,0,.07); }
+  .toc h2 { font-size:16px; color:#0f3460; margin-bottom:16px; border-bottom:2px solid #e8f4fd; padding-bottom:8px; }
+  .toc ol { padding-left:20px; line-height:2; }
+  .toc a { color:#0f3460; text-decoration:none; font-size:13px; }
+  .toc a:hover { text-decoration:underline; }
+  .section { background:#fff; margin:20px 40px; border-radius:10px; padding:30px 36px; box-shadow:0 2px 12px rgba(0,0,0,.07); page-break-inside:avoid; }
+  .section h2 { font-size:18px; color:#0f3460; border-left:4px solid #e94560; padding-left:12px; margin-bottom:20px; }
+  .section h3 { font-size:14px; color:#16213e; margin:20px 0 10px; font-weight:600; }
+  .section h4 { font-size:13px; color:#444; margin:14px 0 6px; font-weight:600; }
+  p { line-height:1.7; margin-bottom:10px; color:#333; }
+  pre { background:#1e1e2e; color:#cdd6f4; border-radius:8px; padding:16px 18px; font-size:11.5px; overflow-x:auto; margin:10px 0 16px; line-height:1.6; }
+  code { background:#eef2ff; color:#3730a3; border-radius:4px; padding:2px 6px; font-size:11.5px; font-family:'Courier New',monospace; }
+  pre code { background:none; color:inherit; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0 18px; font-size:12px; }
+  th { background:#0f3460; color:#fff; padding:9px 12px; text-align:left; }
+  td { padding:8px 12px; border-bottom:1px solid #e8eaf0; }
+  tr:nth-child(even) td { background:#f5f7ff; }
+  .badge-get    { background:#22c55e; color:#fff; border-radius:4px; padding:2px 8px; font-size:10px; font-weight:700; }
+  .badge-post   { background:#3b82f6; color:#fff; border-radius:4px; padding:2px 8px; font-size:10px; font-weight:700; }
+  .badge-put    { background:#f59e0b; color:#fff; border-radius:4px; padding:2px 8px; font-size:10px; font-weight:700; }
+  .badge-delete { background:#ef4444; color:#fff; border-radius:4px; padding:2px 8px; font-size:10px; font-weight:700; }
+  .badge-patch  { background:#8b5cf6; color:#fff; border-radius:4px; padding:2px 8px; font-size:10px; font-weight:700; }
+  .note { background:#fffbeb; border-left:4px solid #f59e0b; padding:12px 16px; border-radius:0 6px 6px 0; margin:12px 0; font-size:12px; }
+  .tip  { background:#f0fdf4; border-left:4px solid #22c55e; padding:12px 16px; border-radius:0 6px 6px 0; margin:12px 0; font-size:12px; }
+  .warn { background:#fff1f2; border-left:4px solid #ef4444; padding:12px 16px; border-radius:0 6px 6px 0; margin:12px 0; font-size:12px; }
+  ul,ol { padding-left:20px; line-height:1.9; color:#333; }
+  .footer { text-align:center; padding:30px; color:#888; font-size:11px; }
+  @media print {
+    body { background:#fff; }
+    .section,.toc { box-shadow:none; margin:10px 20px; }
+    pre { font-size:10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="cover">
+  <h1>QR Service</h1>
+  <div class="sub">Developer Guide – Hướng dẫn sử dụng & tích hợp</div>
+  <div style="margin-bottom:20px;">
+    <span class="badge">Spring Boot 3.2.5</span>
+    <span class="badge">Java 21</span>
+    <span class="badge">jPOS ISO8583</span>
+    <span class="badge">Swagger 2.0 / OpenAPI 3.x</span>
+  </div>
+  <div class="meta">
+    Phiên bản: 1.0.0-SNAPSHOT &nbsp;|&nbsp; MSB – msb.com.vn &nbsp;|&nbsp; Cập nhật: 2026
+  </div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h2>📋 Mục lục</h2>
+  <ol>
+    <li><a href="#s1">Tổng quan kiến trúc</a></li>
+    <li><a href="#s2">Cấu hình & khởi động</a></li>
+    <li><a href="#s3">REST Client động (RestClientService)</a></li>
+    <li><a href="#s4">Flexible Body Input (HttpInputResolver)</a></li>
+    <li><a href="#s5">ISO8583 – Chuyển đổi bản tin</a></li>
+    <li><a href="#s6">Swagger Import – Đăng ký route động</a></li>
+    <li><a href="#s7">Danh sách API endpoints</a></li>
+    <li><a href="#s8">Cấu trúc Response chuẩn</a></li>
+    <li><a href="#s9">Xử lý lỗi</a></li>
+    <li><a href="#s10">Hướng dẫn mở rộng</a></li>
+  </ol>
+</div>
+
+<!-- SECTION 1 -->
+<div class="section" id="s1">
+  <h2>1. Tổng quan kiến trúc</h2>
+  <p>QR Service là một microservice xử lý các nghiệp vụ liên quan đến mã QR, chuyển đổi bản tin ISO8583, và cung cấp khả năng tích hợp API động thông qua import file Swagger.</p>
+  <h3>Các thành phần chính</h3>
+  <table>
+    <tr><th>Thành phần</th><th>Mô tả</th><th>Package</th></tr>
+    <tr><td><code>RestClientService</code></td><td>Gọi REST API backend động theo method</td><td>service</td></tr>
+    <tr><td><code>FlexibleBody / HttpInputResolver</code></td><td>Nhận body JSON ở mọi dạng input</td><td>common/http</td></tr>
+    <tr><td><code>Iso8583Service</code></td><td>Parse/Build bản tin ISO8583 dùng jPOS</td><td>service</td></tr>
+    <tr><td><code>SwaggerImportService</code></td><td>Import Swagger 2.0/OpenAPI 3.x, đăng ký route động</td><td>swagger/service</td></tr>
+    <tr><td><code>DynamicRouteRegistry</code></td><td>Lưu trữ route động trong memory (thread-safe)</td><td>swagger/registry</td></tr>
+    <tr><td><code>VietQrBuilderService</code></td><td>Build/Parse chuỗi VietQR chuẩn NAPAS</td><td>service</td></tr>
+  </table>
+  <h3>Tech stack</h3>
+  <table>
+    <tr><th>Công nghệ</th><th>Phiên bản</th><th>Mục đích</th></tr>
+    <tr><td>Spring Boot</td><td>3.2.5</td><td>Framework chính</td></tr>
+    <tr><td>Java</td><td>21</td><td>Runtime</td></tr>
+    <tr><td>jPOS</td><td>2.1.9</td><td>Xử lý ISO8583</td></tr>
+    <tr><td>ZXing</td><td>3.5.3</td><td>Tạo/đọc ảnh QR</td></tr>
+    <tr><td>swagger-parser</td><td>2.1.22</td><td>Parse Swagger 2.0 / OpenAPI 3.x</td></tr>
+    <tr><td>Oracle DB</td><td>23.4</td><td>Lưu trữ lịch sử QR</td></tr>
+    <tr><td>Redis</td><td>–</td><td>Cache (TTL 1h)</td></tr>
+    <tr><td>Kafka</td><td>–</td><td>Event streaming</td></tr>
+    <tr><td>Resilience4j</td><td>2.2.0</td><td>Rate limiter, Bulkhead</td></tr>
+    <tr><td>SpringDoc</td><td>2.5.0</td><td>Swagger UI</td></tr>
+  </table>
+</div>

@@ -1,0 +1,37 @@
+dsign:
+  enabled: true
+  algorithms:
+    supported:
+      - SHA256withRSA
+      - SHA512withRSA
+  hsm:
+    pool-size: 10
+    connection-timeout-ms: 5000
+    idle-timeout-ms: 60000
+    max-queue-depth: 50
+    slots:
+      - id: "slot-0"
+        pin: "${HSM_SLOT_0_PIN:changeme}"
+      - id: "slot-1"
+        pin: "${HSM_SLOT_1_PIN:changeme}"
+  ca:
+    active-provider: "vnca"
+    providers:
+      vnca:
+        base-url: "https://ca.vnca.vn"
+        api-key: "${VNCA_API_KEY:}"
+        validation-method: "OCSP"
+      other-ca:
+        base-url: "https://other-ca.example.com"
+        api-key: "${OTHER_CA_API_KEY:}"
+        validation-method: "CRL"
+  audit:
+    kafka-topic: "dsign.audit.events"
+    retention-days: 365
+  resilience:
+    hsm:
+      circuit-breaker-failure-rate: 50
+      timeout-seconds: 5
+    ca:
+      circuit-breaker-failure-rate: 50
+      timeout-seconds: 10

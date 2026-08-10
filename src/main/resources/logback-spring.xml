@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <property name="LOG_PATH" value="logs"/>
+
+    <!-- Console appender (mặc định) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Application log file -->
+    <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/qr-service.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/qr-service.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Transaction log file — ghi JSON thuần, mỗi dòng 1 record -->
+    <appender name="TX_LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/transaction.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/transaction.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <!-- Chỉ ghi message (JSON string) — không thêm timestamp/level vì đã có trong JSON -->
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Async wrapper cho TX_LOG_FILE — tránh I/O block hoàn toàn -->
+    <appender name="ASYNC_TX_LOG" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- Queue size trong logback (backup thêm ngoài app-level queue) -->
+        <queueSize>8192</queueSize>
+        <!-- Không bao giờ block caller thread -->
+        <neverBlock>true</neverBlock>
+        <!-- Discard khi queue > 80% (chỉ discard TRACE/DEBUG, giữ INFO) -->
+        <discardingThreshold>20</discardingThreshold>
+        <appender-ref ref="TX_LOG_FILE"/>
+    </appender>
+
+    <!-- Exception log file — ghi JSON exception riêng -->
+    <appender name="EX_LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/exception.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/exception.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Async wrapper cho exception log -->
+    <appender name="ASYNC_EX_LOG" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>4096</queueSize>
+        <neverBlock>true</neverBlock>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="EX_LOG_FILE"/>
+    </appender>
+
+    <!-- Dead Letter log file — message hết hạn TTL / xử lý lỗi -->
+    <appender name="DLQ_LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/dead-letter.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/dead-letter.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>180</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="ASYNC_DLQ_LOG" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>4096</queueSize>
+        <neverBlock>true</neverBlock>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="DLQ_LOG_FILE"/>
+    </appender>
+
+    <!-- ISO8583 audit log — mỗi dòng 1 bản ghi JSON của giao dịch ISO8583 -->
+    <appender name="ISO_AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/iso8583-audit.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/iso8583-audit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>200MB</maxFileSize>
+            <maxHistory>180</maxHistory>
+            <totalSizeCap>20GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!--
+      Async wrapper: ở 400 TPS × 2 bản ghi/giao dịch = 800 dòng/giây.
+      neverBlock=true để I/O đĩa chậm không bao giờ chặn writer thread của queue.
+    -->
+    <appender name="ASYNC_ISO_AUDIT" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>16384</queueSize>
+        <neverBlock>true</neverBlock>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="ISO_AUDIT_FILE"/>
+    </appender>
+
+    <!-- Logger riêng cho transaction log -->
+    <logger name="TRANSACTION_LOG" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_TX_LOG"/>
+    </logger>
+
+    <!-- Logger riêng cho ISO8583 audit -->
+    <logger name="ISO8583_AUDIT_LOG" level="INFO" additivity="false">
+        <appender-ref ref="ASYNC_ISO_AUDIT"/>
+    </logger>
+
+    <!-- Logger riêng cho exception log -->
+    <logger name="EXCEPTION_LOG" level="ERROR" additivity="false">
+        <appender-ref ref="ASYNC_EX_LOG"/>
+    </logger>
+
+    <!-- Logger riêng cho dead letter -->
+    <logger name="DEAD_LETTER_LOG" level="WARN" additivity="false">
+        <appender-ref ref="ASYNC_DLQ_LOG"/>
+    </logger>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="APP_FILE"/>
+    </root>
+
+</configuration>

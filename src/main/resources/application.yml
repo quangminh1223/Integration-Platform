@@ -1,0 +1,375 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  # Undertow — nhẹ hơn Tomcat, phù hợp container OCP
+  undertow:
+    threads:
+      io: 4                 # IO threads = số core (1 core trên OCP thì set 2)
+      worker: 200           # Worker threads xử lý request
+    buffer-size: 1024
+    direct-buffers: true
+    max-http-post-size: 10MB
+
+spring:
+  application:
+    name: qr-service
+  # Virtual Threads (Java 21) — mỗi request chạy trên virtual thread
+  # Backend timeout không chiếm platform thread → không bao giờ thread exhaustion
+  threads:
+    virtual:
+      enabled: true
+
+  # Oracle DataSource
+  datasource:
+    url: jdbc:oracle:thin:@10.0.130.39:1521/esbuat
+    username: m1t_esb1
+    password: M1t_Esb_Uat
+    driver-class-name: oracle.jdbc.OracleDriver
+    hikari:
+      # 100 TPS, mỗi request giữ connection ~50ms → cần ~5 connections
+      # Đặt 30 để có buffer cho spike traffic
+      maximum-pool-size: 30
+      minimum-idle: 10
+      connection-timeout: 3000      # fail fast nếu pool cạn
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 5000
+      pool-name: QrHikariPool
+      data-source-properties:
+        oracle.jdbc.implicitStatementCacheSize: 20
+        oracle.net.CONNECT_TIMEOUT: 3000
+
+  # JPA / Hibernate
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.OracleDialect
+        format_sql: true
+        default_schema: QR_USER
+
+  # Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 50    # đủ cho 100 TPS concurrent
+          max-idle: 20
+          min-idle: 10
+          max-wait: 1000ms  # fail fast nếu pool cạn
+
+  # Kafka
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        # Batching để tăng throughput - gom nhiều message trong 5ms
+        linger.ms: 5
+        batch.size: 32768       # 32KB batch
+        buffer.memory: 33554432 # 32MB buffer
+        compression.type: snappy
+        max.in.flight.requests.per.connection: 5
+    consumer:
+      group-id: qr-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      # Tăng fetch size để consumer xử lý batch lớn hơn
+      fetch-min-size: 1
+      fetch-max-wait: 500ms
+      max-poll-records: 50
+      properties:
+        spring.json.trusted.packages: "com.qrservice.*"
+        max.poll.interval.ms: 30000
+
+# Kafka Topics
+kafka:
+  topics:
+    qr-generated: qr.generated
+    qr-parsed: qr.parsed
+  # Số consumer threads song song cho mỗi topic
+  listener:
+    concurrency: 3
+
+# Async Thread Pool
+async:
+  qr-executor:
+    core-pool-size: 20
+    max-pool-size: 50
+    queue-capacity: 200
+    thread-name-prefix: qr-async-
+    keep-alive-seconds: 60
+
+# Resilience4j — Bảo vệ khi backend chậm/timeout
+resilience4j:
+  # Circuit Breaker — ngắt mạch khi backend lỗi nhiều
+  circuitbreaker:
+    instances:
+      backend-caller:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 50              # đánh giá trên 50 calls gần nhất
+        minimum-number-of-calls: 20          # cần ít nhất 20 calls mới đánh giá
+        failure-rate-threshold: 60           # 60% lỗi → mở circuit
+        slow-call-rate-threshold: 80         # 80% calls chậm → mở circuit
+        slow-call-duration-threshold: 8s     # call > 8s = "chậm"
+        wait-duration-in-open-state: 30s     # mở circuit 30s rồi thử lại
+        permitted-number-of-calls-in-half-open-state: 5  # thử 5 calls khi half-open
+        automatic-transition-from-open-to-half-open-enabled: true
+
+  # Rate Limiter — kiểm soát TPS gửi sang backend
+  ratelimiter:
+    instances:
+      backend-caller:
+        limit-for-period: 500              # tối đa 500 req/s gửi sang backend
+        limit-refresh-period: 1s
+        timeout-duration: 2s               # chờ tối đa 2s nếu bị throttle
+        register-health-indicator: true
+      qr-generate:
+        limit-for-period: 2000
+        limit-refresh-period: 1s
+        timeout-duration: 500ms
+        register-health-indicator: true
+      qr-parse:
+        limit-for-period: 2000
+        limit-refresh-period: 1s
+        timeout-duration: 500ms
+        register-health-indicator: true
+
+  # Bulkhead — giới hạn concurrent calls tới backend (tránh thread exhaustion)
+  bulkhead:
+    instances:
+      backend-caller:
+        max-concurrent-calls: 100          # tối đa 100 calls đồng thời tới backend
+        max-wait-duration: 2s              # chờ tối đa 2s nếu bulkhead đầy
+      qr-generate:
+        max-concurrent-calls: 150
+        max-wait-duration: 500ms
+      qr-parse:
+        max-concurrent-calls: 150
+        max-wait-duration: 500ms
+
+  # Retry — retry thông minh với exponential backoff
+  retry:
+    instances:
+      backend-caller:
+        max-attempts: 3                    # tối đa 3 lần (1 gốc + 2 retry)
+        wait-duration: 500ms               # chờ 500ms giữa các lần retry
+        exponential-backoff-multiplier: 2   # 500ms → 1s → 2s
+        retry-exceptions:
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - msb.com.vn.qrservice.common.exception.Iso8583Exception
+
+  # TimeLimiter — timeout cứng cho mỗi call (safety net)
+  timelimiter:
+    instances:
+      backend-caller:
+        timeout-duration: 12s              # kill call sau 12s bất kể
+
+# Crypto — RSA keys cho mã hóa/ký payload message
+crypto:
+  enabled: false                    # bật khi cần mã hóa/ký payload
+  # Toàn bộ key (private key của mình + public key/cert đối tác) nằm trong 1 keystore JKS.
+  # Config CHỈ lưu đường dẫn + mật khẩu + alias key của mình.
+  # Public key đối tác KHÔNG cấu hình ở đây — lấy theo alias trong JKS lúc runtime.
+  keystore:
+    path: ${CRYPTO_KEYSTORE_PATH:}          # vd: file:/etc/secrets/keys.jks hoặc classpath:keystore/keys.jks
+    type: JKS                                # JKS hoặc PKCS12
+    store-password: ${CRYPTO_KEYSTORE_PASSWORD:}
+    key-password: ${CRYPTO_KEY_PASSWORD:}
+    key-alias: ${CRYPTO_KEY_ALIAS:}          # alias private key của mình (để ký/giải mã)
+
+# System Cache trên Redis — lưu/load cache hệ thống (service routes, ...)
+# Mặc định TẮT. Khi có thông tin kết nối Redis thì set enabled=true là dùng được ngay.
+system-cache:
+  redis:
+    enabled: false                 # bật khi đã cấu hình spring.data.redis ở trên
+    key-prefix: "syscache:"        # tiền tố key trên Redis
+    ttl-seconds: 0                 # 0 = không hết hạn; >0 = TTL theo giây
+
+# REST Client — GIẢM TIMEOUT để fail fast
+rest-client:
+  connect-timeout-ms: 3000    # 3s connect (không chờ lâu)
+  read-timeout-ms: 10000      # 10s read (giảm từ 30s → tránh thread bị giữ lâu)
+
+# Transaction Log (Async)
+transaction-log:
+  index: esb_cms_log                    # _index trong log JSON
+  provider-code:                         # để trống = tự sinh từ appName + apiName
+  queue-capacity: 10000                  # bounded queue — nếu đầy thì drop (không block)
+  writer-threads: 2                      # số thread ghi log (tách khỏi business thread)
+  batch-size: 100                        # mỗi lần writer poll tối đa 100 records
+  ttl-millis: 180000                     # 3 phút — message quá hạn → Dead Letter Queue
+
+# Exception Log (Async) — ghi log lỗi gọi backend ra file riêng
+exception-log:
+  queue-capacity: 5000                   # bounded queue cho exception log
+  writer-threads: 1                      # 1 thread đủ cho exception (ít hơn transaction)
+  batch-size: 50
+  ttl-millis: 180000                     # 3 phút — message quá hạn → Dead Letter Queue
+  include-stacktrace: true               # ghi stack trace (tắt nếu muốn log gọn)
+
+# ISO8583 Socket — hai chiều nhận/gửi bản tin qua TCP
+iso8583:
+  # File định nghĩa field ISO8583 cho GenericPackager (jPOS)
+  packager:
+    config: iso8583/iso8583.xml
+  socket:
+    packager-config: iso8583/iso8583.xml
+
+    # ══════════════════════════════════════════════════════════════════════
+    # SIZING: mục tiêu 400 TPS, timeout 15s
+    # Định luật Little: concurrency = TPS × latency = 400 × 15 = 6000
+    # ══════════════════════════════════════════════════════════════════════
+
+    # ── INBOUND: ứng dụng này MỞ PORT và NHẬN bản tin từ hệ thống ngoài ──────
+    inbound:
+      enabled: true
+      port: 1111                    # port lắng nghe bản tin đến
+      bind-address: 0.0.0.0         # 0.0.0.0 = nhận trên mọi network interface
+      backlog: 128                  # connection chờ được accept
+      so-timeout-ms: 0              # 0 = không timeout đọc (connection persistent)
+      max-connections: 200          # số connection đồng thời tối đa
+      tcp-no-delay: true            # tắt Nagle → giảm latency
+      keep-alive: true
+
+      pipelining-enabled: true      # true = 1 connection xử lý song song nhiều bản tin
+      max-concurrent-messages: 6000 # 400 TPS × 15s. Vượt trần → trả RC 96 ngay
+      processing-timeout-ms: 15000  # deadline xử lý 1 bản tin → quá hạn trả RC 68
+      backpressure-response-code: "96"  # 96 = System malfunction (bên gọi retry được)
+      timeout-response-code: "68"       # 68 = Response received too late
+      drain-timeout-ms: 20000       # chờ bản tin đang xử lý xong khi shutdown
+      deadline-scheduler-threads: 4 # watchdog chỉ hẹn giờ, việc ghi socket đẩy sang virtual thread
+      # Java blocking I/O KHÔNG có write timeout (SO_TIMEOUT chỉ áp cho read).
+      # Bên gọi ngừng đọc socket → lệnh ghi block vĩnh viễn và giữ slot xử lý.
+      # Quá hạn này thì đóng connection để giải phóng.
+      write-acquire-timeout-ms: 3000
+
+    # ── OUTBOUND: ứng dụng này KẾT NỐI RA và GỬI bản tin đi ──────────────────
+    outbound:
+      enabled: true
+      host: localhost               # host đích
+      port: 1112                    # port đích
+      connect-timeout-ms: 5000      # timeout thiết lập TCP
+      response-timeout-ms: 15000    # timeout chờ response cho mỗi bản tin
+      max-pending-requests: 6000    # trần request chờ response đồng thời
+      # ── Chống treo kênh outbound khi đối tác ngừng đọc socket ──────────────
+      # Java blocking I/O không có write timeout. Nếu đối tác không đọc, TCP receive
+      # window đầy và lệnh ghi treo vĩnh viễn, giữ write lock → mọi GD sau bị chặn.
+      write-acquire-timeout-ms: 3000     # không giành được quyền ghi → fail fast
+      write-stall-timeout-ms: 10000      # lệnh ghi treo quá lâu → đóng socket cưỡng chế
+      write-stall-check-interval-ms: 1000  # chu kỳ watchdog kiểm tra
+      so-timeout-ms: 0              # 0 = reader thread block chờ, tự xử lý
+      tcp-no-delay: true
+      keep-alive: true
+      reconnect-interval-ms: 10000  # chu kỳ kiểm tra & tái kết nối
+      echo-enabled: false           # true = gửi 0800 định kỳ giữ kết nối
+      echo-interval-ms: 60000
+
+    # ── FRAMING: cách tách bản tin trên TCP stream ───────────────────────────
+    framing:
+      header-type: BINARY_2         # BINARY_2 | BINARY_4 | ASCII_4 | BCD_2 | NONE
+      length-includes-header: false # true = length tính cả byte header
+      max-message-length: 8192      # chặn bản tin rác gây OOM
+
+    # ── AUDIT: log giao dịch qua queue, NGOÀI đường trả response ─────────────
+    # Pipeline: nhận → unpack → [audit queue] → convert ISO→JSON → business → response
+    # offer() non-blocking: queue đầy thì drop bản ghi log, giao dịch vẫn được xử lý
+    audit:
+      enabled: true
+      queue-capacity: 20000         # 400 TPS × 2 bản ghi/GD ≈ 25s đệm
+      worker-threads: 2             # thread ghi log, tách khỏi thread xử lý GD
+      batch-size: 200               # số bản ghi drain mỗi lần poll
+      ttl-millis: 180000            # bản ghi quá hạn 3 phút → Dead Letter Queue
+      mask-fields: [2, 35, 36, 45, 52, 55]  # PCI DSS: PAN, track data, PIN, ICC
+      log-raw-hex: false            # bật khi debug — log phình rất nhanh
+
+    # ── TRANSFORM: chuyển ISO8583 sang JSON trước khi vào business flow ──────
+    transform:
+      iso-to-json-enabled: true
+      include-field-names: false    # true = kèm tên đầy đủ field, tốn dung lượng
+
+    # ── IDEMPOTENCY: chống hạch toán hai lần ─────────────────────────────────
+    # BẮT BUỘC: CORE không hỗ trợ bản tin đảo 0400. Sau khi ta trả RC 68 do timeout,
+    # bên gọi gửi lại cùng STAN — nếu để chạm CORE lần hai thì khách bị trừ tiền hai lần
+    # và KHÔNG có cách nào hoàn tác tự động.
+    idempotency:
+      enabled: true
+      key-prefix: "iso:idem:"
+      applied-mtis: ["0100", "0200", "0400"]  # chỉ giao dịch tài chính, 0800 không cần
+      retention-seconds: 86400          # 1 ngày — khớp vòng đời STAN theo terminal
+      unknown-retention-seconds: 259200 # 3 ngày — giữ lâu hơn cho GD treo, chặn gửi lại
+      duplicate-response-code: "94"     # 94 = Duplicate transmission
+
+    # ── PENDING: theo dõi giao dịch timeout để đối soát với CORE ─────────────
+    # Không có reversal nên đây là lưới an toàn duy nhất chống lệch quỹ âm thầm
+    pending:
+      enabled: true
+      queue-capacity: 10000
+      writer-threads: 2
+      batch-size: 50
+      ttl-millis: 300000
+      approved-response-codes: ["00", "10", "11"]  # RC của CORE coi là ĐÃ hạch toán
+      manual-escalation-minutes: 60      # CORE im lặng quá lâu → NEEDS_MANUAL
+      reconcile-interval-ms: 300000      # chu kỳ job đối soát (5 phút)
+      reconcile-batch-size: 200
+
+# Swagger Definitions Auto-Load
+swagger:
+  definitions:
+    path: classpath:swagger-definitions/   # thư mục chứa file swagger
+    auto-load: true                         # true = tự load khi khởi động
+
+# Backend Endpoints — config riêng trong file backend-endpoints.yml
+
+# QR Configuration
+qr:
+  image:
+    width: 300
+    height: 300
+    format: PNG
+    margin: 1
+  cache:
+    ttl-seconds: 3600
+
+# SpringDoc / Swagger
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,threaddump,heapdump
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    com.qrservice: DEBUG
+    org.springframework.kafka: INFO
+    org.hibernate.SQL: DEBUG

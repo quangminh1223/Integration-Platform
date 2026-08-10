@@ -1,0 +1,742 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "description" : "createMsbAccountTransfer",
+    "version" : "v1.0.0",
+    "title" : "createMsbAccountTransfer"
+  },
+  "host" : "api.server.com",
+  "basePath" : "/api/v1.0.0/",
+  "tags" : [ ],
+  "schemes" : [ "https" ],
+  "security" : [ {
+    "basicAuth" : [ ]
+  }, {
+    "apiKey" : [ ]
+  } ],
+  "paths" : {
+    "/party/msb/transfer/accttrf/create" : {
+      "post" : {
+        "tags" : [ ],
+        "operationId" : "createMsbAccountTransfer",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "in" : "body",
+          "name" : "payload",
+          "description" : "body Payload",
+          "required" : true,
+          "schema" : {
+            "$ref" : "#/definitions/MsbAccountTransfer"
+          }
+        }, {
+          "name" : "validate_only",
+          "in" : "query",
+          "description" : "The identifier to indicate if it is set to only validate or not.",
+          "required" : false,
+          "type" : "boolean"
+        }, {
+          "name" : "credentials",
+          "in" : "header",
+          "description" : "Username and password to authenticate the API against core-banking.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "companyId",
+          "in" : "header",
+          "description" : "Identifier of the lead company of the underlying Entity/Company/Branch for the respective contract for customer data protection purposes. Example US0010001.",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "deviceId",
+          "in" : "header",
+          "description" : "Identifies the device type",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "userRole",
+          "in" : "header",
+          "description" : "User who initiated the transaction",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "MsbAccountTransferResponse",
+            "schema" : {
+              "$ref" : "#/definitions/MsbAccountTransferResponse"
+            }
+          },
+          "default" : {
+            "description" : "ScreenErrorResponse",
+            "schema" : {
+              "$ref" : "#/definitions/ScreenErrorResponse"
+            }
+          },
+          "400" : {
+            "description" : "BusinessScreenErrorResponse",
+            "schema" : {
+              "$ref" : "#/definitions/BusinessScreenErrorResponse"
+            }
+          },
+          "500" : {
+            "description" : "SystemScreenErrorResponse",
+            "schema" : {
+              "$ref" : "#/definitions/SystemScreenErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "securityDefinitions" : {
+    "basicAuth" : {
+      "type" : "basic"
+    },
+    "apiKey" : {
+      "type" : "apiKey",
+      "name" : "Authorization",
+      "in" : "header"
+    }
+  },
+  "definitions" : {
+    "PayloadHeader" : {
+      "properties" : {
+        "override" : {
+          "type" : "object",
+          "properties" : {
+            "overrideDetails" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "properties" : {
+                  "id" : {
+                    "type" : "string",
+                    "description" : "The identifier of the override."
+                  },
+                  "description" : {
+                    "type" : "string",
+                    "description" : "The actual override message."
+                  },
+                  "code" : {
+                    "type" : "string",
+                    "description" : "The code related to override message."
+                  },
+                  "responseCode" : {
+                    "type" : "string",
+                    "description" : "The user input to accept/reject the override."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "audit" : {
+          "type" : "object",
+          "properties" : {
+            "versionNumber" : {
+              "type" : "string",
+              "description" : "The CURR.NO. of the record"
+            }
+          }
+        }
+      }
+    },
+    "MsbAccountTransfer" : {
+      "properties" : {
+        "header" : {
+          "$ref" : "#/definitions/PayloadHeader"
+        },
+        "body" : {
+          "$ref" : "#/definitions/MsbAccountTransferBody"
+        }
+      },
+      "description" : "MsbAccountTransfer"
+    },
+    "MsbAccountTransferBody" : {
+      "type" : "object",
+      "required" : [ "creditCurrency", "debitCurrency", "msbTransCode", "msbTransSeq" ],
+      "properties" : {
+        "paymentDetails" : {
+          "type" : "array",
+          "description" : "Indicates the payment details for the beneficiary to apply the payment.",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "paymentDetail" : {
+                "type" : "string",
+                "description" : "Indicates the payment details for the beneficiary to apply the payment.",
+                "minLength" : 0,
+                "maxLength" : 50
+              }
+            }
+          }
+        },
+        "ORDERING" : {
+          "type" : "array",
+          "description" : "Contains the customer identifier to fetch list of consent arrangements for the customer or customer identifier of the debtor account. This will be populated once the SCA(Strong Customer Authentication) is completed.",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "CUSTOMER" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "properties" : {
+                    "orderingBank1" : {
+                      "type" : "string",
+                      "description" : "",
+                      "minLength" : 0,
+                      "maxLength" : 35
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "debitAccount" : {
+          "type" : "string",
+          "description" : " Identifier of the debitAccounts.",
+          "minLength" : 0,
+          "maxLength" : 36
+        },
+        "debitCurrency" : {
+          "type" : "string",
+          "description" : "Currency of the debit account. For example: USD, EUR etc.",
+          "minLength" : 1,
+          "maxLength" : 3
+        },
+        "debitAmount" : {
+          "type" : "string",
+          "description" : "Amount to be debited in a payment transaction",
+          "minLength" : 0,
+          "maxLength" : 18
+        },
+        "creditAccount" : {
+          "type" : "string",
+          "description" : "Identifier of the creditAccounts.",
+          "minLength" : 0,
+          "maxLength" : 36
+        },
+        "creditCurrency" : {
+          "type" : "string",
+          "description" : "Currency of the account which funds will be transferred to.",
+          "minLength" : 1,
+          "maxLength" : 3
+        },
+        "creditAmount" : {
+          "type" : "string",
+          "description" : "Amount to be credited in a payment transaction",
+          "minLength" : 0,
+          "maxLength" : 18
+        },
+        "customerRate" : {
+          "type" : "string",
+          "description" : "The exchange rate that is actually applied for currency conversion in case of transactions involving FX conversion. ",
+          "minLength" : 0,
+          "maxLength" : 16
+        },
+        "treasuryRate" : {
+          "type" : "string",
+          "description" : "The Treasury rate for the conversion between payment currency and the ordering currency",
+          "minLength" : 0,
+          "maxLength" : 16
+        },
+        "msbTransCode" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 1,
+          "maxLength" : 35
+        },
+        "commissionType" : {
+          "type" : "string",
+          "description" : "Identifies the Commission Types which are applicable to the transaction",
+          "minLength" : 0,
+          "maxLength" : 11
+        },
+        "commissionAmount" : {
+          "type" : "string",
+          "description" : "Amount of commission charged for the payment created with respect to the commission type used.",
+          "minLength" : 0,
+          "maxLength" : 22
+        },
+        "tax" : {
+          "type" : "string",
+          "description" : "Indicates the Identifier of the tax conditions",
+          "minLength" : 0,
+          "maxLength" : 22
+        },
+        "charge" : {
+          "type" : "string",
+          "description" : "Indicates the charge property.",
+          "minLength" : 0,
+          "maxLength" : 22
+        },
+        "commissionCode" : {
+          "type" : "string",
+          "description" : "These field control the allocation of Periodic commission where the field COMM.CODE is the trigger for periodic commission and the field CSN.CODE is a system maintained field and hold the commission amount relating to the period band",
+          "minLength" : 0,
+          "maxLength" : 20
+        },
+        "msbChannel" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 35
+        },
+        "msbTransSeq" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 1,
+          "maxLength" : 65
+        },
+        "msbDealId" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 15
+        },
+        "msbFxVersion" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 65
+        },
+        "accOfficier" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 10
+        },
+        "msbHub" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 10
+        }
+      }
+    },
+    "ScreenHeader" : {
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The Identifier of the record created"
+        },
+        "status" : {
+          "type" : "string",
+          "description" : "Status of the API(success/failed)"
+        },
+        "transactionStatus" : {
+          "type" : "string",
+          "description" : "The status of the transaction"
+        },
+        "uniqueIdentifier" : {
+          "type" : "string",
+          "description" : "The unique identifier/Message Reference of the record created."
+        },
+        "audit" : {
+          "type" : "object",
+          "properties" : {
+            "T24_time" : {
+              "type" : "integer",
+              "format" : "int32",
+              "description" : "Time taken to response by Transact"
+            },
+            "versionNumber" : {
+              "type" : "string",
+              "description" : "The CURR.NO. of the record"
+            },
+            "requestParse_time" : {
+              "type" : "number",
+              "description" : "Time taken to parse the request by IRIS"
+            },
+            "responseParse_time" : {
+              "type" : "number",
+              "description" : "Time taken to parse the response by IRIS"
+            }
+          }
+        }
+      }
+    },
+    "MsbAccountTransferResponse" : {
+      "properties" : {
+        "header" : {
+          "$ref" : "#/definitions/ScreenHeader"
+        },
+        "body" : {
+          "$ref" : "#/definitions/MsbAccountTransferResponseBody"
+        }
+      },
+      "description" : "MsbAccountTransferResponse"
+    },
+    "MsbAccountTransferResponseBody" : {
+      "type" : "object",
+      "properties" : {
+        "paymentDetails" : {
+          "type" : "array",
+          "description" : "Indicates the payment details for the beneficiary to apply the payment.",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "paymentDetail" : {
+                "type" : "string",
+                "description" : "Indicates the payment details for the beneficiary to apply the payment.",
+                "minLength" : 0,
+                "maxLength" : 50
+              }
+            }
+          }
+        },
+        "ORDERING" : {
+          "type" : "array",
+          "description" : "Contains the customer identifier to fetch list of consent arrangements for the customer or customer identifier of the debtor account. This will be populated once the SCA(Strong Customer Authentication) is completed.",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "CUSTOMER" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "properties" : {
+                    "orderingBank1" : {
+                      "type" : "string",
+                      "description" : "",
+                      "minLength" : 0,
+                      "maxLength" : 35
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "debitAccount" : {
+          "type" : "string",
+          "description" : " Identifier of the debitAccounts.",
+          "minLength" : 0,
+          "maxLength" : 36
+        },
+        "debitCurrency" : {
+          "type" : "string",
+          "description" : "Currency of the debit account. For example: USD, EUR etc.",
+          "minLength" : 1,
+          "maxLength" : 3
+        },
+        "debitAmount" : {
+          "type" : "string",
+          "description" : "Amount to be debited in a payment transaction",
+          "minLength" : 0,
+          "maxLength" : 18
+        },
+        "creditAccount" : {
+          "type" : "string",
+          "description" : "Identifier of the creditAccounts.",
+          "minLength" : 0,
+          "maxLength" : 36
+        },
+        "creditCurrency" : {
+          "type" : "string",
+          "description" : "Currency of the account which funds will be transferred to.",
+          "minLength" : 1,
+          "maxLength" : 3
+        },
+        "creditAmount" : {
+          "type" : "string",
+          "description" : "Amount to be credited in a payment transaction",
+          "minLength" : 0,
+          "maxLength" : 18
+        },
+        "customerRate" : {
+          "type" : "string",
+          "description" : "The exchange rate that is actually applied for currency conversion in case of transactions involving FX conversion. ",
+          "minLength" : 0,
+          "maxLength" : 16
+        },
+        "treasuryRate" : {
+          "type" : "string",
+          "description" : "The Treasury rate for the conversion between payment currency and the ordering currency",
+          "minLength" : 0,
+          "maxLength" : 16
+        },
+        "msbTransCode" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 1,
+          "maxLength" : 35
+        },
+        "commissionType" : {
+          "type" : "string",
+          "description" : "Identifies the Commission Types which are applicable to the transaction",
+          "minLength" : 0,
+          "maxLength" : 11
+        },
+        "commissionAmount" : {
+          "type" : "string",
+          "description" : "Amount of commission charged for the payment created with respect to the commission type used.",
+          "minLength" : 0,
+          "maxLength" : 22
+        },
+        "tax" : {
+          "type" : "string",
+          "description" : "Indicates the Identifier of the tax conditions",
+          "minLength" : 0,
+          "maxLength" : 22
+        },
+        "charge" : {
+          "type" : "string",
+          "description" : "Indicates the charge property.",
+          "minLength" : 0,
+          "maxLength" : 22
+        },
+        "commissionCode" : {
+          "type" : "string",
+          "description" : "These field control the allocation of Periodic commission where the field COMM.CODE is the trigger for periodic commission and the field CSN.CODE is a system maintained field and hold the commission amount relating to the period band",
+          "minLength" : 0,
+          "maxLength" : 20
+        },
+        "msbChannel" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 35
+        },
+        "msbTransSeq" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 1,
+          "maxLength" : 65
+        },
+        "msbDealId" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 15
+        },
+        "msbFxVersion" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 65
+        },
+        "accOfficier" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 10
+        },
+        "msbHub" : {
+          "type" : "string",
+          "description" : "",
+          "minLength" : 0,
+          "maxLength" : 10
+        }
+      }
+    },
+    "ErrorHeader" : {
+      "properties" : {
+        "id" : {
+          "type" : "string",
+          "description" : "The Identifier of the record created"
+        },
+        "status" : {
+          "type" : "string",
+          "description" : "Status of the API(success/failed)"
+        },
+        "transactionStatus" : {
+          "type" : "string",
+          "description" : "The status of the transaction"
+        },
+        "uniqueIdentifier" : {
+          "type" : "string",
+          "description" : "The unique identifier/Message Reference of the record created."
+        },
+        "audit" : {
+          "type" : "object",
+          "properties" : {
+            "T24_time" : {
+              "type" : "integer",
+              "format" : "int32",
+              "description" : "Time taken to response by Transact"
+            },
+            "versionNumber" : {
+              "type" : "string",
+              "description" : "The CURR.NO. of the record"
+            },
+            "requestParse_time" : {
+              "type" : "number",
+              "description" : "Time taken to parse the request by IRIS"
+            },
+            "responseParse_time" : {
+              "type" : "number",
+              "description" : "Time taken to parse the response by IRIS"
+            }
+          }
+        }
+      }
+    },
+    "overrideBody" : {
+      "properties" : {
+        "overrideDetails" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "id" : {
+                "type" : "string",
+                "description" : "The identifier of the override."
+              },
+              "description" : {
+                "type" : "string",
+                "description" : "The actual override message."
+              },
+              "code" : {
+                "type" : "string",
+                "description" : "The code related to override message."
+              },
+              "options" : {
+                "type" : "array",
+                "description" : "The usable options for the override.",
+                "items" : {
+                  "type" : "string"
+                }
+              },
+              "type" : {
+                "type" : "string",
+                "description" : "The type of the override."
+              }
+            }
+          }
+        }
+      }
+    },
+    "ScreenErrorResponse" : {
+      "properties" : {
+        "header" : {
+          "$ref" : "#/definitions/ErrorHeader"
+        },
+        "error" : {
+          "$ref" : "#/definitions/ScreenErrorResponseBody"
+        },
+        "override" : {
+          "$ref" : "#/definitions/overrideBody"
+        }
+      },
+      "description" : "ScreenErrorResponse"
+    },
+    "ScreenErrorResponseBody" : {
+      "type" : "object",
+      "properties" : {
+        "errorDetails" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "fieldName" : {
+                "type" : "string",
+                "description" : "The name of the field"
+              },
+              "code" : {
+                "type" : "string",
+                "description" : "The identifier of the error message"
+              },
+              "message" : {
+                "type" : "string",
+                "description" : "The actual Transact error message "
+              }
+            }
+          }
+        },
+        "type" : {
+          "type" : "string",
+          "description" : "The identifier of error type: "
+        }
+      }
+    },
+    "BusinessScreenErrorResponse" : {
+      "properties" : {
+        "header" : {
+          "$ref" : "#/definitions/ErrorHeader"
+        },
+        "error" : {
+          "$ref" : "#/definitions/BusinessScreenErrorResponseBody"
+        },
+        "override" : {
+          "$ref" : "#/definitions/overrideBody"
+        }
+      },
+      "description" : "BusinessScreenErrorResponse"
+    },
+    "BusinessScreenErrorResponseBody" : {
+      "type" : "object",
+      "properties" : {
+        "errorDetails" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "fieldName" : {
+                "type" : "string",
+                "description" : "The name of the field"
+              },
+              "code" : {
+                "type" : "string",
+                "description" : "The identifier of the error message"
+              },
+              "message" : {
+                "type" : "string",
+                "description" : "The actual Transact error message for bad requests"
+              }
+            }
+          }
+        },
+        "type" : {
+          "type" : "string",
+          "description" : "The identifier of error type: Business"
+        }
+      }
+    },
+    "SystemScreenErrorResponse" : {
+      "properties" : {
+        "header" : {
+          "$ref" : "#/definitions/ErrorHeader"
+        },
+        "error" : {
+          "$ref" : "#/definitions/SystemScreenErrorResponseBody"
+        },
+        "override" : {
+          "$ref" : "#/definitions/overrideBody"
+        }
+      },
+      "description" : "SystemScreenErrorResponse"
+    },
+    "SystemScreenErrorResponseBody" : {
+      "type" : "object",
+      "properties" : {
+        "errorDetails" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "fieldName" : {
+                "type" : "string",
+                "description" : "The name of the field"
+              },
+              "code" : {
+                "type" : "string",
+                "description" : "The identifier of the error message"
+              },
+              "message" : {
+                "type" : "string",
+                "description" : "The actual Transact error message caused by server"
+              }
+            }
+          }
+        },
+        "type" : {
+          "type" : "string",
+          "description" : "The identifier of error type: System"
+        }
+      }
+    }
+  }
+}
