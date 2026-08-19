@@ -1,0 +1,34 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# TEMPLATE — BACKEND KHÔNG CÓ SWAGGER
+#
+# Dùng khi backend chưa có file swagger để import qua SwaggerAutoLoader/
+# SwaggerImportController. Khai báo route THỦ CÔNG ngay trong block "route:" dưới đây —
+# ApiMappingRegistry sẽ tự đăng ký route này vào DynamicRouteRegistry lúc khởi động,
+# giống như route được parse từ swagger. ResilientBackendCaller phía sau không phân biệt
+# được khác gì — vẫn đủ circuit breaker, bulkhead, retry, transaction log.
+#
+# CÁCH DÙNG: copy → mapping-definitions/<operationId>.yml (bỏ đuôi .example)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+operationId: TODO_operationId
+description: "TODO: mô tả API này"
+
+# ── KHAI BÁO ROUTE THỦ CÔNG — bắt buộc khi backend không có swagger ────────────
+route:
+  method: POST                              # GET | POST | PUT | PATCH | DELETE
+  baseUrl: "http://core-banking.internal:8080/api/v1"   # TODO: domain thật của backend
+  path: "/transfers"                        # TODO: path thật, hỗ trợ {param} nếu cần path variable
+  timeoutMs: 15000                          # tùy chọn — không khai thì dùng default hệ thống
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REQUEST / RESPONSE — giống hoàn toàn _TEMPLATE.yml.example, không có gì khác biệt
+# vì DeclarativeMappingEngine xử lý mapping độc lập với việc route đến từ đâu.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+request:
+  - source: TODO_fieldNguon
+    target: body.TODO_fieldDich
+
+response:
+  - source: TODO_fieldBackend
+    target: TODO_fieldTraClient

@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# TEMPLATE MAPPING DEFINITION — copy file này, đổi tên thành <operationId>.yml
+#
+# CÁCH DÙNG:
+#   1. Copy file này → mapping-definitions/<operationId>.yml
+#   2. Điền operationId (PHẢI khớp operationId trong swagger đã import)
+#   3. Xoá các dòng ví dụ mẫu, thêm field thật theo request/response của API
+#   4. Xoá phần comment hướng dẫn này nếu muốn file gọn hơn
+#
+# CHÍNH SÁCH MẶC ĐỊNH (theo quyết định dự án): backend không có field bắt buộc.
+# → KHÔNG viết required: true trừ khi bạn CHẮC CHẮN backend đó bắt buộc field này.
+# Field thiếu ở input → bỏ qua, không gửi backend. Backend không trả field → bỏ qua,
+# không trả cho client.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# operationId PHẢI khớp:
+#   1. operationId trong swagger đã import (để ResilientBackendCaller lookup route)
+#   2. Tên file này (không bắt buộc nhưng nên đặt giống cho dễ tra)
+operationId: TODO_operationId
+
+# Mô tả ngắn, chỉ để log/debug — không ảnh hưởng logic
+description: "TODO: mô tả ngắn API này làm gì"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REQUEST — input nội bộ (Map lồng nhau) → JSON body gửi backend
+# ═══════════════════════════════════════════════════════════════════════════════
+request:
+
+  # ── Ví dụ 1: copy trực tiếp, không transform gì ────────────────────────────
+  # Input: {"debitAccount": "80000002233"}
+  # Output gửi backend: {"body": {"debitAccount": "80000002233"}}
+  - source: TODO_fieldNguon          # dot-path vào input, vd: transferFromCASAToCASA.debitAccount
+    target: body.TODO_fieldDich      # dot-path vào JSON gửi backend, vd: body.debitAccount
+
+  # ── Ví dụ 2: input lồng dưới 1 key nghiệp vụ ───────────────────────────────
+  # Dùng khi client gửi kiểu {"tenNghiepVu": {"field": "..."}}
+  # - source: tenNghiepVu.debitAccount
+  #   target: body.debitAccount
+
+  # ── Ví dụ 3: giới hạn độ dài theo swagger backend ──────────────────────────
+  # Tránh backend trả lỗi validation vì vượt max length
+  # - source: description
+  #   target: body.paymentDetails[0].paymentDetail
+  #   maxLength: 50
+
+  # ── Ví dụ 4: fallback — dùng field khác nếu field chính rỗng ───────────────
+  # Thử creditRate trước, rỗng thì thử debitRate, rỗng cả hai thì bỏ qua field
+  # - source: creditRate
+  #   target: body.customerRate
+  #   fallbackSources: [debitRate]
+
+  # ── Ví dụ 5: giá trị mặc định (default) — CHỈ dùng khi field thật sự optional
+  #     về nghiệp vụ (vd: đơn vị tiền tệ mặc định). KHÔNG dùng cho mã giao dịch,
+  #     số tham chiếu, hay field có ý nghĩa định danh — những field đó nếu thiếu
+  #     phải bỏ qua (không khai gì) hoặc required: true, không suy đoán giá trị.
+  # - source: currency
+  #   target: body.debitCurrency
+  #   defaultValue: "VND"
+
+  # ── Ví dụ 6: field bắt buộc — CHỈ dùng khi bạn CHẮC CHẮN backend yêu cầu ────
+  #     Thiếu field này → HTTP 400 ngay, không gửi request lên backend.
+  #     Xoá dòng "required: true" nếu không chắc — mặc định dự án là KHÔNG required.
+  # - source: TODO_fieldBatBuoc
+  #   target: body.TODO_fieldDich
+  #   required: true
+
+  # ── Ví dụ 7: literal cố định — dùng khi backend cần 1 giá trị hằng, không
+  #     phụ thuộc input. KHÔNG dùng cho giá trị cần sinh động (ngày giờ, sequence,
+  #     mã giao dịch tự sinh) — loại đó cần code Java riêng, không khai báo được ở đây.
+  #     Cách khai: 1 field ẢO không tồn tại trong input làm "source" (luôn rỗng),
+  #     rồi dùng defaultValue làm giá trị literal thật sự gửi đi.
+  # - source: __literal_channel        # tên field không tồn tại trong input, luôn resolve null
+  #   target: body.msbChannel
+  #   defaultValue: "IBMB"             # giá trị literal thực gửi backend
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# RESPONSE — JSON backend trả về → Map kết quả trả cho client
+# ═══════════════════════════════════════════════════════════════════════════════
+response:
+
+  # ── Ví dụ: đọc field lồng trong response backend ───────────────────────────
+  # Backend trả: {"header": {"id": "TXN123"}}
+  # Client nhận: {"transactionId": "TXN123"}
+  - source: TODO_fieldBackend         # dot-path vào JsonNode backend trả về, vd: header.id
+    target: TODO_fieldTraClient       # key trong Map trả về client, vd: transactionId
+
+  # ── Ví dụ: field response bắt buộc — CHỈ dùng khi bạn cần phát hiện NGAY
+  #     lúc backend đổi hợp đồng (đổi tên field, đổi cấu trúc). Thiếu → HTTP 502.
+  #     Mặc định dự án là KHÔNG required — backend không trả thì bỏ qua.
+  # - source: header.status
+  #   target: status
+  #   required: true

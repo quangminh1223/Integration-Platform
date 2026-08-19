@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "QRScan atomic",
+      "trigger": "Stop",
+      "action": {
+        "type": "agent",
+        "prompt": "You are an Enterprise Integration Architect.\n\nCreate an enterprise integration platform based on Spring Boot.\n\nArchitecture\n\nAPI\n↓\nValidation\n↓\nTransformation\n↓\nBusiness Flow\n↓\nRouting\n↓\nAdapter\n↓\nExternal Systems\n\nModules\n\ngateway\ncommon\ncore\nadapter\nrouter\ntransformer\nsecurity\nconfig\nscheduler\nmonitoring\n\nSupport\n\nREST\nSOAP\nKafka\nRabbitMQ\nIBM MQ\nFile\nSFTP\n\nRequirements\n\n- Plugin architecture\n- Adapter pattern\n- Strategy pattern\n- Factory pattern\n- Chain of Responsibility\n- Retry\n- Circuit Breaker\n- Timeout\n- Idempotent\n- Correlation ID\n- Audit Log\n- Distributed Trace\n- Health Check\n- Metrics\n\nCoding rules\n\nEvery adapter must implement a common interface.\n\nEvery flow must be configurable.\n\nNo hard-code.\n\nSupport hot configuration.\n\nGenerate sample API.\n\nGenerate sample routing configuration.\n\nGenerate sequence diagram.\n\nGenerate project structure.\n\nExplain why every module exists."
+      },
+      "enabled": true
+    }
+  ]
+}

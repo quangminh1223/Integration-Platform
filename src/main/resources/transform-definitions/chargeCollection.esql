@@ -1,0 +1,67 @@
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- TRANSFORM: chargeCollection
+-- Ví dụ minh hoạ cách dùng các hàm chuỗi, theo đúng ý ban đầu:
+--   OutputRoot.JSON.Data.body.glAccount = InputRoot.JSON.Data.Body.chargeCollection.glAccount;
+--
+-- CHÍNH SÁCH REQUIRED: không field nào bắt buộc. Input thiếu field nào thì bỏ qua
+-- dòng gán đó, output chỉ chứa field nào có giá trị. Không dùng "-- required" ở
+-- transform này.
+--
+-- Gọi thử:
+--   POST /api/v1/transform/chargeCollection
+--   Body:
+--   {
+--     "Body": {
+--       "chargeCollection": {
+--         "glAccount": " 1217-000123 ",
+--         "customerName": "nguyen van an",
+--         "branchCode": "HN01",
+--         "feeAmount": "150000.50",
+--         "note": ""
+--       }
+--     }
+--   }
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- 1) Gán trực tiếp, không dùng hàm — trường hợp cơ bản nhất
+OutputRoot.JSON.Data.body.glAccount = InputRoot.JSON.Data.Body.chargeCollection.glAccount;
+
+-- 2) TRIM — bỏ khoảng trắng đầu/cuối do hệ thống nguồn gửi dư
+--    " 1217-000123 " → "1217-000123"
+OutputRoot.JSON.Data.body.glAccountTrimmed = TRIM(InputRoot.JSON.Data.Body.chargeCollection.glAccount);
+
+-- 3) UPPER lồng trong TRIM — chuẩn hoá tên khách hàng về chữ hoa, đồng thời bỏ khoảng trắng
+--    " nguyen van an" → "NGUYEN VAN AN"
+OutputRoot.JSON.Data.body.customerNameUpper = UPPER(TRIM(InputRoot.JSON.Data.Body.chargeCollection.customerName));
+
+-- 4) REPLACE — bỏ dấu gạch ngang trong số tài khoản trước khi gửi backend
+--    "1217-000123" → "1217000123"
+OutputRoot.JSON.Data.body.glAccountNoHyphen =
+    REPLACE(InputRoot.JSON.Data.Body.chargeCollection.glAccount, '-', '');
+
+-- 5) LPAD — đệm số 0 vào đầu cho đủ 12 ký tự, dùng nhiều khi chuẩn hoá số tài khoản/mã GD
+--    "123" → "000000000123"
+OutputRoot.JSON.Data.body.branchCodePadded =
+    LPAD(InputRoot.JSON.Data.Body.chargeCollection.branchCode, 12, '0');
+
+-- 6) CONCAT — ghép nhiều field thành một chuỗi tham chiếu duy nhất
+OutputRoot.JSON.Data.body.reference =
+    CONCAT(InputRoot.JSON.Data.Body.chargeCollection.branchCode, '-',
+           InputRoot.JSON.Data.Body.chargeCollection.glAccount);
+
+-- 7) SUBSTRING — lấy 4 ký tự từ vị trí 1 (1-based, chuẩn ESQL) làm mã chi nhánh rút gọn
+OutputRoot.JSON.Data.body.branchPrefix =
+    SUBSTRING(InputRoot.JSON.Data.Body.chargeCollection.branchCode, 1, 4);
+
+-- 8) COALESCE — note có thể rỗng, dùng giá trị mặc định thay vì để trống
+--    "" → "Không có ghi chú"
+OutputRoot.JSON.Data.body.note =
+    COALESCE(InputRoot.JSON.Data.Body.chargeCollection.note, 'Không có ghi chú');
+
+-- 9) LENGTH — kiểm tra độ dài, hữu ích khi cần field số lượng ký tự
+OutputRoot.JSON.Data.body.glAccountLength = LENGTH(InputRoot.JSON.Data.Body.chargeCollection.glAccount);
+
+-- 10) Không đánh required — backend đích không coi field nào là bắt buộc.
+--     Thiếu feeAmount trong input → bỏ qua field này, không xuất hiện trong output,
+--     KHÔNG ném lỗi.
+OutputRoot.JSON.Data.body.feeAmount = InputRoot.JSON.Data.Body.chargeCollection.feeAmount;

@@ -1,0 +1,90 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# MAPPING DEFINITION: createMsbAccountTransfer
+#
+# Tương đương TransferMappingService.buildPayload() / buildResponse() viết bằng Java,
+# nhưng khai báo bằng YAML — không cần build lại code khi đổi mapping.
+#
+# operationId PHẢI khớp:
+#   1. operationId trong swagger đã import (để ResilientBackendCaller lookup route)
+#   2. Tên field này trong file mapping
+#
+# CHÍNH SÁCH REQUIRED CHO TÍCH HỢP NÀY:
+# Backend không coi field nào là bắt buộc ở tầng platform này — validation nghiệp vụ
+# (nếu có) do backend tự xử lý và trả lỗi qua response code riêng của họ.
+# Vì vậy KHÔNG field nào đánh required: true. Input thiếu field nào → bỏ qua field đó,
+# không gửi lên backend (không gửi key rỗng). Response thiếu field nào → bỏ qua, không
+# trả field đó cho client.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+operationId: createMsbAccountTransfer
+description: "Chuyển khoản nội bộ MSB — mapping input nội bộ sang MsbAccountTransferBody"
+
+request:
+  # Không field nào required — thiếu thì bỏ qua, không gửi lên backend
+  - source: debitCurrency
+    target: body.debitCurrency
+    maxLength: 3
+
+  - source: creditCurrency
+    target: body.creditCurrency
+    maxLength: 3
+
+  - source: tranCode
+    target: body.msbTransCode
+    maxLength: 35
+    # KHÔNG có defaultValue — không suy đoán mã giao dịch. Thiếu thì bỏ qua field,
+    # để backend tự quyết định xử lý ra sao khi thiếu (vì backend không bắt buộc).
+
+  - source: tranSeq
+    target: body.msbTransSeq
+    maxLength: 65
+
+  - source: debitAccount
+    target: body.debitAccount
+    maxLength: 36
+
+  - source: debitAmount
+    target: body.debitAmount
+    maxLength: 18
+
+  - source: creditAccount
+    target: body.creditAccount
+    maxLength: 36
+
+  - source: creditAmount
+    target: body.creditAmount
+    maxLength: 18
+
+  # creditRate hoặc debitRate — dùng giá trị đầu tiên khác rỗng
+  - source: creditRate
+    target: body.customerRate
+    fallbackSources: [debitRate]
+    maxLength: 16
+
+  - source: serviceFee
+    target: body.commissionAmount
+    maxLength: 22
+
+  - source: vatFee
+    target: body.tax
+    maxLength: 22
+
+  - source: channel
+    target: body.msbChannel
+    maxLength: 35
+
+  - source: description
+    target: body.paymentDetails[0].paymentDetail
+    maxLength: 50
+
+response:
+  # Không field nào required — backend không trả field nào thì bỏ qua, không mất công
+  # phát field rỗng/giả về client
+  - source: header.id
+    target: transactionId
+
+  - source: header.status
+    target: status
+
+  - source: header.transactionStatus
+    target: transactionStatus
