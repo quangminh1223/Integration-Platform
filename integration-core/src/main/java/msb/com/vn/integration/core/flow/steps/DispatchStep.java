@@ -7,9 +7,9 @@ import msb.com.vn.integration.common.model.IntegrationMessage;
 import msb.com.vn.integration.common.model.MessageStatus;
 import msb.com.vn.integration.core.adapter.IntegrationAdapter;
 import msb.com.vn.integration.core.flow.FlowContext;
+import msb.com.vn.integration.common.routing.RouteDefinition;
 import msb.com.vn.integration.core.flow.FlowStep;
 import msb.com.vn.integration.core.plugin.PluginRegistry;
-import msb.com.vn.integration.router.RouteDefinition;
 import org.springframework.stereotype.Component;
 
 /**

@@ -1,10 +1,15 @@
-package msb.com.vn.integration.router;
+package msb.com.vn.integration.common.routing;
 
 import msb.com.vn.integration.common.model.IntegrationMessage;
 
 /**
  * Strategy pattern for message routing.
  * Determines which adapter/target system should receive the message.
+ *
+ * <p>Declared in {@code integration-common} so that {@code integration-core} can depend on the
+ * routing <b>abstraction</b> without depending on {@code integration-router}, which supplies the
+ * implementation. That is what makes the Strategy pattern real here: swapping the routing
+ * algorithm means adding a class in the router module, with no change to core.</p>
  */
 public interface MessageRouter {
 

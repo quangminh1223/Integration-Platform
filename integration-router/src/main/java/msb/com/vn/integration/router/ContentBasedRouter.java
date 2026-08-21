@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import msb.com.vn.integration.common.exception.RoutingException;
 import msb.com.vn.integration.common.model.IntegrationMessage;
+import msb.com.vn.integration.common.routing.MessageRouter;
+import msb.com.vn.integration.common.routing.RouteDefinition;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

@@ -4,22 +4,27 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import msb.com.vn.integration.common.model.IntegrationMessage;
 import msb.com.vn.integration.common.model.MessageStatus;
+import msb.com.vn.integration.common.routing.MessageRouter;
+import msb.com.vn.integration.common.routing.RouteDefinition;
 import msb.com.vn.integration.core.flow.FlowContext;
 import msb.com.vn.integration.core.flow.FlowStep;
-import msb.com.vn.integration.router.ContentBasedRouter;
-import msb.com.vn.integration.router.RouteDefinition;
 import org.springframework.stereotype.Component;
 
 /**
  * Built-in routing step — resolves target adapter and endpoint.
  * Stores route info in FlowContext for the dispatch step.
+ *
+ * <p>Depends on the {@link MessageRouter} abstraction, not on a concrete router. Previously this
+ * injected {@code ContentBasedRouter} directly, which meant swapping the routing algorithm
+ * required editing core — the Strategy pattern existed in name only. Spring injects whichever
+ * {@code MessageRouter} implementation is on the classpath at runtime.</p>
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class RoutingStep implements FlowStep {
 
-    private final ContentBasedRouter router;
+    private final MessageRouter router;
 
     @Override
     public String getStepName() {

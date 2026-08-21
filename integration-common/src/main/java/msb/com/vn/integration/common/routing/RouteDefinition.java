@@ -1,4 +1,4 @@
-package msb.com.vn.integration.router;
+package msb.com.vn.integration.common.routing;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,6 +10,12 @@ import java.util.Map;
 
 /**
  * Defines a resolved route — where and how to send the message.
+ *
+ * <p>Lives in {@code integration-common}, not {@code integration-router}, because this is a
+ * <b>contract</b> rather than an implementation. {@code integration-core} needs it in
+ * {@code RoutingStep} and {@code DispatchStep}, while {@code integration-router} depends on
+ * {@code integration-core} — keeping the type in the router module made the two modules
+ * mutually dependent and {@code integration-core} could not compile at all.</p>
  */
 @Data
 @Builder

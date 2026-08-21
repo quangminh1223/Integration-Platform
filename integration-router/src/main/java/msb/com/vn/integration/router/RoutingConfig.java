@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import msb.com.vn.integration.common.enums.ProtocolType;
+import msb.com.vn.integration.common.routing.RouteDefinition;
 
 import java.util.Map;
 
